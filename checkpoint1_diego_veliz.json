@@ -1,0 +1,221 @@
+{
+  "name": "entrega 1 ia avanzado",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "85d320b8-8c4a-4280-bbe8-1542111ef897",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -1488,
+        0
+      ],
+      "id": "3e7ff98f-0013-4a2f-8d81-b9cea58bd982",
+      "name": "Webhook",
+      "webhookId": "85d320b8-8c4a-4280-bbe8-1542111ef897"
+    },
+    {
+      "parameters": {
+        "model": "openai/gpt-oss-20b",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        -1408,
+        192
+      ],
+      "id": "72fe5359-2948-4f41-a27b-a9995275d8ae",
+      "name": "Groq Chat Model",
+      "credentials": {
+        "groqApi": {
+          "id": "eQv1XTTthfUTMWGC",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.body.message }}\n(Hoy es {{ $now.toFormat('cccc') }}, {{ $now.toFormat('dd/MM/yyyy') }})",
+        "options": {
+          "systemMessage": " ROL\nSos el Coordinador de Agenda de un consultorio de psicología. Gestionas turnos por WhatsApp de forma autonoma.\n\n AMBITO\nAtendes unicamente reservas, cancelaciones y reprogramaciones de turnos. No das consejos psicologicos, no diagnosticas, no respondes consultas clínicas ni de obra social.\n\nOBJETIVO COMERCIAL\nQue cada paciente termine la conversacion con un turno reservado (\"\"Cuando el paciente elija un día y horario, y te dé su nombre, creá el evento y confirmale.) o con una cancelacion/reprogramacion gestionada correctamente.\n\n HORARIOS\nLunes a viernes: 08:00-12:00 y 15:00-21:00. Sesiones de 1 hora + 20 min de margen entre sesiones.\n\n'Los horarios válidos de inicio son EXCLUSIVAMENTE: 08:00, 09:20, 10:40, 15:00, 16:20, 17:40, 19:00 y 20:20. No ofrezcas ningún otro horario.\"\n\nHERRAMIENTAS DISPONIBLES\n- Google Calendar: consulta disponibilidad y crea eventos de turno.\n- Gmail: notifica a la doctora el turno.\n\nREGLAS\n\"REGLA DE DÍAS LABORABLES (OBLIGATORIO): Solo podés ofrecer turnos de LUNES A VIERNES. Si el paciente pide un sábado o domingo, debés rechazarlo amablemente y ofrecerle el lunes o martes más cercano. NUNCA agendes eventos en sábados o domingos.\"\n1. Nunca inventes disponibilidad: usa solo lo que devuelve Calendar.\n2.\"Cuando el paciente elija un día y horario, y te dé su nombre, creá el evento directamente en el calendario usando la herramienta. El turno queda CONFIRMADO de inmediato.\"\n3. Si el paciente cancela con menos de 24h de anticipacion , deriva a la doctora.\n4. Un mensaje = una accion. Si pide varias cosas, procesa la primera.\n5. Tono: cálido, claro, profesional. Sin emojis excesivos (máx 1).\n\n LÍMITES DE ACCION (QUE NO PODÉS HACER)\n- NO confirmas turnos sin validacion de la doctora.\n- NO das informacion medica, diagnosticos ni opiniones clínicas.\n- NO gestionas pagos ni facturacion.\n- NO modificas horarios de atencion del consultorio.\n- NO compartís datos de otros pacientes.\n\nESTILO DE LENGUAJE\nUsa español neutro, profesional y directo. Evitá lenguaje inclusivo con \"e\", \"x\" o \"@\". Escribí en masculino generico estandar (\"el paciente\", \"los usuarios\""
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        -1280,
+        0
+      ],
+      "id": "d075af72-8724-4302-a0de-3f203bebc050",
+      "name": "AI Agent",
+      "retryOnFail": true,
+      "maxTries": 5,
+      "executeOnce": false,
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "sendTo": "velizdiego49@gmail.com",
+        "subject": "=[AGENTE TURNOS] Ejecución {{ $now.format('YYYY-MM-DD HH:mm') }} - {{ $json.accion || 'sin acción' }}",
+        "emailType": "text",
+        "message": "= REPORTE AUTOMÁTICO DEL AGENTE DE TURNOS ========================================== \n Fecha y hora: {{ $now.format('DD/MM/YYYY HH:mm:ss') }}   INPUT DEL PACIENTE: {{ $('Webhook').item.json.body?.message || $('Webhook').item.json.chatInput || 'No capturado' }}   RESPUESTA DEL AGENTE: {{ $json.output || $json.text || 'Sin respuesta' }}   ACCIÓN EJECUTADA: {{ $json.accion || 'No especificada' }}   MOTIVO INTERNO: {{ $json.motivo_interno || 'No especificado' }}  ========================================== Este es un log automático generado por n8n.",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        -912,
+        0
+      ],
+      "id": "2f365a8c-0023-45e3-80fc-ce1eb37ac5ba",
+      "name": "Send a message",
+      "webhookId": "2513112e-2e06-443b-b2d3-d9cc5b9f0ad7",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "0vQcM88zqNazWhZN",
+          "name": "Gmail account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Herramienta para agendar un turno en la agenda de la doctora. Activala ÚNICAMENTE cuando el paciente haya confirmado un día y horario disponible. Al usarla, vas a crear el evento del turno en el calendario.",
+        "calendar": {
+          "__rl": true,
+          "value": "702c4390df91f541c3d987c6b126465a8b163faa0c1bdc8a0704c0ddf81264fe@group.calendar.google.com",
+          "mode": "list",
+          "cachedResultName": "consultorio  psicologa"
+        },
+        "start": "={{ $fromAI('start_time') }}",
+        "end": "={{ $fromAI('end_time') }}",
+        "additionalFields": {
+          "summary": "=Turno: {{ $fromAI('nombre_paciente') }} - CONFIRMADO"
+        }
+      },
+      "type": "n8n-nodes-base.googleCalendarTool",
+      "typeVersion": 1.3,
+      "position": [
+        -992,
+        192
+      ],
+      "id": "68e7124e-9bab-4e97-b19b-41326bf97dba",
+      "name": "Create an event in Google Calendar",
+      "notesInFlow": false,
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "OokhEcLDv2h8jIEg",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Herramienta para consultar la disponibilidad de turnos. Activala SIEMPRE que el paciente pregunte qué días u horarios hay libres, o cuando pida un turno nuevo y necesites verificar si el horario está disponible. Devuelve la lista de eventos ya ocupados en la agenda.",
+        "operation": "getAll",
+        "calendar": {
+          "__rl": true,
+          "value": "702c4390df91f541c3d987c6b126465a8b163faa0c1bdc8a0704c0ddf81264fe@group.calendar.google.com",
+          "mode": "list",
+          "cachedResultName": "consultorio  psicologa"
+        },
+        "returnAll": true,
+        "timeMax": "={{ $now.plus(7, 'days') }}",
+        "options": {
+          "orderBy": "startTime"
+        }
+      },
+      "type": "n8n-nodes-base.googleCalendarTool",
+      "typeVersion": 1.3,
+      "position": [
+        -1136,
+        192
+      ],
+      "id": "d50e69c5-f186-4342-9bf7-d36b4591e9ea",
+      "name": "Get many events in Google Calendar",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "OokhEcLDv2h8jIEg",
+          "name": "Google Calendar account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create an event in Google Calendar": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many events in Google Calendar": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "c73cebe8-8b62-48c4-8087-21f4cd15020b",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "2a627e8f524157974ca85c3c025a4c375aa1cb7e3323317673a9d0e1f9965517"
+  },
+  "nodeGroups": [],
+  "id": "AQOV9S5sOs5nY5XU",
+  "tags": []
+}
